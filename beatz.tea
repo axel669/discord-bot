@@ -1,0 +1,42 @@
+let Discord = require("discord.js")
+// let music = require("discord.js-music-v11")
+
+(() => {
+    let client = Discord.Client*()
+    music(
+        client
+        {
+            prefix: "pls "
+        }
+    )
+
+    let commands = {
+        leave() => {
+            for [name, vc] in client.voiceConnections {
+                vc.channel.leave()
+            }
+            client.destroy()
+        }
+        // join(msg) => msg.member.voiceChannel?.join()
+    }
+
+    let permissionInt = 3164160
+
+    client.on(
+        "ready"
+        () => console.log("${client.user.tag} is ready!")
+    )
+
+    client.on(
+        "message"
+        (msg) => {
+            console.log("${msg.member.user.tag}:", msg.content)
+            if msg.content.startsWith("pls ") == true {
+                let [command, ...args] = msg.content.split(/\s+/)[1...]
+                commands[command]?(msg, ...args)
+            }
+        }
+    )
+
+    await client.login("MjY3MTY1NDMxMDI0OTc1ODcy.DsKiqQ.okSPLQwsGO4TUC8T4xO7o0qdrGE")
+})()
