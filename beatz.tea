@@ -1,23 +1,121 @@
 let Discord = require("discord.js")
-// let music = require("discord.js-music-v11")
+let ytdl = require("ytdl-core")
+let fetch = require("node-fetch")
+
+let mut globalVolume = 0.5
+
+let secretKey = process.env.sick_beats_settings_key
+let settingsID = process.env.sick_beats_settings_id
+let botToken = process.env.discord_bot_token
+
+let saveSetings = (settings) => fetch(
+    "https://api.jsonbin.io/b/${settingsID}"
+    {
+        method: "PUT"
+        body: JSON.stringify(settings)
+        headers: {
+            "Content-Type": "application/json"
+            "secret-key": secretKey
+        }
+    }
+)
+
+let conditional = (condition) =>
+    (func) =>
+        (...args) => {
+            if condition(...args) == true {
+                func(...args)
+            }
+        }
 
 (() => {
-    let client = Discord.Client*()
-    music(
-        client
+    let settings = await(await fetch(
+        "https://api.jsonbin.io/b/${settingsID}/latest"
         {
-            prefix: "pls "
+            headers: {
+                "secret-key": secretKey
+            }
         }
+    )).json()
+    let client = Discord.Client*()
+    let mut currentPlayer = null
+    // let players = Map*()
+
+    // console.log(settings)
+    // return 0
+
+    let isPlaying = conditional(
+        (msg) => currentPlayer != null
     )
 
     let commands = {
         leave() => {
+            // for [name, dispatcher] in players {
+            //     dispatcher.end()
+            // }
+            if currentPlayer != null {
+                currentPlayer.end()
+            }
             for [name, vc] in client.voiceConnections {
                 vc.channel.leave()
             }
             client.destroy()
         }
-        // join(msg) => msg.member.voiceChannel?.join()
+        play(msg, url) => {
+            let id = msg.guild.id
+
+            if client.voiceConnections.has(id) == false {
+                if msg.member.voiceChannel == undefined {
+                    return
+                }
+                msg.member.voiceChannel.join()
+            }
+            let stream = ytdl(
+                url
+                {filter: "audioonly"}
+            )
+            currentPlayer = client.voiceConnections.get(id).playStream(stream)
+            // players.set(id, player)
+            currentPlayer.setVolume(settings.volume)
+            currentPlayer.on(
+                "end"
+                () => console.log("Stopped playing?")
+            )
+        }
+        pause: isPlaying((msg) => {
+            // players.get(msg.guild.id).pause()
+            currentPlayer.pause()
+        })
+        resume: isPlaying((msg) => {
+            // players.get(msg.guild.id).resume()
+            currentPlayer.resume()
+        })
+        stop: isPlaying((msg) => {
+            // players.get(msg.guild.id).end()
+            // players.delete(msg.guild.id)
+            currentPlayer.end()
+        })
+        skip: isPlaying((msg) => {
+            currentPlayer.end()
+        })
+        volume(msg, volume) => {
+            if volume != undefined {
+                let id = msg.guild.id
+                let targetVolume = Math.min(volume, 100)
+
+                let vol = parseFloat(volume) / 100
+                if currentPlayer != null {
+                    currentPlayer.setVolume(vol)
+                }
+                // if players.has(id) == true {
+                //     players.get(id).setVolume(vol)
+                // }
+                settings.volume = vol
+                saveSetings(settings)
+            }
+            msg.channel.sendMessage("Volume set to ${settings.volume * 100}")
+        }
+        join(msg) => msg.member.voiceChannel?.join()
     }
 
     let permissionInt = 3164160
@@ -31,12 +129,12 @@ let Discord = require("discord.js")
         "message"
         (msg) => {
             console.log("${msg.member.user.tag}:", msg.content)
-            if msg.content.startsWith("pls ") == true {
+            if msg.content.toLowerCase().startsWith("pls ") == true {
                 let [command, ...args] = msg.content.split(/\s+/)[1...]
-                commands[command]?(msg, ...args)
+                commands[command.toLowerCase()]?(msg, ...args)
             }
         }
     )
 
-    await client.login("MjY3MTY1NDMxMDI0OTc1ODcy.DsKiqQ.okSPLQwsGO4TUC8T4xO7o0qdrGE")
+    await client.login(botToken)
 })()
