@@ -1,8 +1,13 @@
+// check out https://www.npmjs.com/package/yt-search
+
 let Discord = require("discord.js")
 let ytdl = require("ytdl-core")
 let fetch = require("node-fetch")
+let update = require("immutable-update-values")
 
-let mut globalVolume = 0.5
+let pi = require("./pi.js")
+
+let newLine = String.fromCharCode(10)
 
 let secretKey = process.env.sick_beats_settings_key
 let settingsID = process.env.sick_beats_settings_id
@@ -28,31 +33,68 @@ let conditional = (condition) =>
             }
         }
 
-(() => {
-    let settings = await(await fetch(
-        "https://api.jsonbin.io/b/${settingsID}/latest"
-        {
-            headers: {
-                "secret-key": secretKey
-            }
+update.addVerb(
+    "$popFront"
+    ([head, ...tail]) => tail
+    () => true
+)
+let Settings = (data) => {
+    let mut current = data
+    return {
+        get value() => current
+        update(action, value) => {
+            current = update(current, {[action]: value})
+            saveSetings(current)
         }
-    )).json()
+    }
+}
+
+(() => {
+    let settings = Settings(
+        await (await fetch(
+            "https://api.jsonbin.io/b/${settingsID}/latest"
+            {
+                headers: {
+                    "secret-key": secretKey
+                }
+            }
+        )).json()
+    )
     let client = Discord.Client*()
     let mut currentPlayer = null
-    // let players = Map*()
+    let playURL = (vc, url, volume) => {
+        let stream = ytdl(url, {filter: "audioonly"})
+        let player = vc.playStream(stream)
 
-    // console.log(settings)
-    // return 0
+        player.setVolume(volume)
+        player.on(
+            "end"
+            (reason) => {
+                currentPlayer = null
+                if reason != "user" {
+                    settings.update("queue.$popFront")
+                    if settings.queue.length > 0 {
+                        currentPlayer = playURL(
+                            player.player.voiceConnection
+                            settings.value.queue[0]
+                            settings.value.volume
+                        )
+                        return 0
+                    }
+                }
+                player.player.voiceConnection.channel.leave()
+            }
+        )
+
+        return player
+    }
 
     let isPlaying = conditional(
         (msg) => currentPlayer != null
     )
 
     let commands = {
-        leave() => {
-            // for [name, dispatcher] in players {
-            //     dispatcher.end()
-            // }
+        shutdown() => {
             if currentPlayer != null {
                 currentPlayer.end()
             }
@@ -70,33 +112,30 @@ let conditional = (condition) =>
                 }
                 msg.member.voiceChannel.join()
             }
-            let stream = ytdl(
-                url
-                {filter: "audioonly"}
-            )
-            currentPlayer = client.voiceConnections.get(id).playStream(stream)
-            // players.set(id, player)
-            currentPlayer.setVolume(settings.volume)
-            currentPlayer.on(
-                "end"
-                () => console.log("Stopped playing?")
-            )
+
+            if url != undefined {
+                settings.update("queue.$push", url)
+            }
+
+            if (settings.value.queue.length > 0) {
+                currentPlayer = playURL(
+                    client.voiceConnections.get(id)
+                    settings.value.queue[0]
+                    settings.value.volume
+                )
+            }
         }
         pause: isPlaying((msg) => {
-            // players.get(msg.guild.id).pause()
             currentPlayer.pause()
         })
         resume: isPlaying((msg) => {
-            // players.get(msg.guild.id).resume()
             currentPlayer.resume()
         })
         stop: isPlaying((msg) => {
-            // players.get(msg.guild.id).end()
-            // players.delete(msg.guild.id)
             currentPlayer.end()
         })
         skip: isPlaying((msg) => {
-            currentPlayer.end()
+            currentPlayer.end("skip")
         })
         volume(msg, volume) => {
             if volume != undefined {
@@ -107,15 +146,35 @@ let conditional = (condition) =>
                 if currentPlayer != null {
                     currentPlayer.setVolume(vol)
                 }
-                // if players.has(id) == true {
-                //     players.get(id).setVolume(vol)
-                // }
-                settings.volume = vol
-                saveSetings(settings)
+                settings.update("volume.$set", vol)
             }
-            msg.channel.sendMessage("Volume set to ${settings.volume * 100}")
+            msg.channel.send("Volume set to ${settings.value.volume * 100}")
         }
         join(msg) => msg.member.voiceChannel?.join()
+        pie(msg) => msg.channel.send("🥧")
+        pi(msg, digitsString) => {
+            let digits = parseInt(digitsString ?? "20")
+            msg.channel.send("```${pi[0...digits + 2]}```")
+        }
+        queue(msg, command, ...args) => {
+            switch command {
+                case "clear" {
+                    currentPlayer?.end()
+                    settings.update("queue.$set", [])
+                    msg.channel.send("queue has been cleared :thumbsup:")
+                }
+                case "list" {
+                    let {queue} = settings.value
+
+                    if queue.length == 0 {
+                        msg.channel.send("queue is empty")
+                    }
+                    else {
+                        msg.channel.send("```${queue.join(newLine)}```")
+                    }
+                }
+            }
+        }
     }
 
     let permissionInt = 3164160
