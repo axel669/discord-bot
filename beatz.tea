@@ -3,7 +3,7 @@
 let Discord = require("discord.js")
 let ytdl = require("ytdl-core")
 let fetch = require("node-fetch")
-let update = require("immutable-update-values")
+let update = require("@axel669/immutable-update")
 
 let pi = require("./pi.js")
 
@@ -33,11 +33,13 @@ let conditional = (condition) =>
             }
         }
 
-update.addVerb(
-    "$popFront"
-    ([head, ...tail]) => tail
-    () => true
-)
+// update.addVerb(
+//     "$popFront"
+//     ([head, ...tail]) => tail
+//     () => true
+// )
+update.actions.$popFront = ([head, ...tail]) => tail
+
 let Settings = (data) => {
     let mut current = data
     return {
@@ -52,7 +54,7 @@ let Settings = (data) => {
 (() => {
     let settings = Settings(
         await (await fetch(
-            "https://api.jsonbin.io/b/${settingsID}/latest"
+            `https://api.jsonbin.io/b/${settingsID}/latest`
             {
                 headers: {
                     "secret-key": secretKey
@@ -62,22 +64,42 @@ let Settings = (data) => {
     )
     let client = Discord.Client*()
     let mut currentPlayer = null
-    let playURL = (vc, url, volume) => {
+    let playURL = (vc, url, volume, channel) => {
         let stream = ytdl(url, {filter: "audioonly"})
         let player = vc.playStream(stream)
 
+        let info = await ytdl.getBasicInfo(url)
+        let details = info.player_response.videoDetails
+
+        stream.on(
+            "error"
+            (err) => {
+                console.log(`stream error with ${url}`)
+                console.error(err)
+                channel.send(`there was an error playing ${url}`)
+            }
+        )
+
         player.setVolume(volume)
+        player.on(
+            "start"
+            () => {
+                channel.send(`now playing ${details.title}`)
+            }
+        )
         player.on(
             "end"
             (reason) => {
+                console.log("stream ended")
                 currentPlayer = null
                 if reason != "user" {
                     settings.update("queue.$popFront")
-                    if settings.queue.length > 0 {
-                        currentPlayer = playURL(
+                    if settings.value.queue.length > 0 {
+                        currentPlayer = await playURL(
                             player.player.voiceConnection
                             settings.value.queue[0]
                             settings.value.volume
+                            channel
                         )
                         return 0
                     }
@@ -85,6 +107,7 @@ let Settings = (data) => {
                 player.player.voiceConnection.channel.leave()
             }
         )
+        player.totalTime = parseInt(details.lengthSeconds) * 1000
 
         return player
     }
@@ -117,38 +140,64 @@ let Settings = (data) => {
                 settings.update("queue.$push", url)
             }
 
-            if (settings.value.queue.length > 0) {
-                currentPlayer = playURL(
+            if (settings.value.queue.length > 0 && currentPlayer == null) {
+                currentPlayer = await playURL(
                     client.voiceConnections.get(id)
                     settings.value.queue[0]
                     settings.value.volume
+                    msg.channel
                 )
             }
         }
-        pause: isPlaying((msg) => {
+        @@isPlaying
+        pause(msg) => {
             currentPlayer.pause()
-        })
-        resume: isPlaying((msg) => {
+        }
+        @@isPlaying
+        resume(msg) => {
             currentPlayer.resume()
-        })
-        stop: isPlaying((msg) => {
+        }
+        @@isPlaying
+        stop(msg) => {
             currentPlayer.end()
-        })
-        skip: isPlaying((msg) => {
+        }
+        @@isPlaying
+        skip(msg) => {
             currentPlayer.end("skip")
-        })
+        }
+        @@isPlaying
+        status(msg) => {
+            let timeFormat = (time) => {
+                let s = Math.floor(time / 1000)
+                let m = Math.floor(s / 60)
+                let h = Math.floor(m / 60)
+
+                let seconds = `0${s % 60}`.slice(-2)
+                let minutes = `0${m % 60}`.slice(-2)
+
+                return `${h}:${minutes}:${seconds}`
+            }
+
+            let time = timeFormat(currentPlayer.time)
+            let totalTime = timeFormat(currentPlayer.totalTime)
+
+            msg.channel.send(
+                `Song is at ${time}/${totalTime}`
+            )
+        }
         volume(msg, volume) => {
             if volume != undefined {
                 let id = msg.guild.id
                 let targetVolume = Math.min(volume, 100)
 
                 let vol = parseFloat(volume) / 100
+                console.log(currentPlayer)
                 if currentPlayer != null {
                     currentPlayer.setVolume(vol)
                 }
                 settings.update("volume.$set", vol)
             }
-            msg.channel.send("Volume set to ${settings.value.volume * 100}")
+            msg.channel.send(`Volume set to ${settings.value.volume * 100}`)
         }
         join(msg) => msg.member.voiceChannel?.join()
         pie(msg) => msg.channel.send("🥧")
@@ -170,7 +219,10 @@ let Settings = (data) => {
                         msg.channel.send("queue is empty")
                     }
                     else {
-                        msg.channel.send("```${queue.join(newLine)}```")
+                        let qlist = queue.map(
+                            (url, index) => `${index + 1}. ${url}`
+                        )
+                        msg.channel.send("```${qlist.join(newLine)}```")
                     }
                 }
             }
@@ -181,15 +233,24 @@ let Settings = (data) => {
 
     client.on(
         "ready"
-        () => console.log("${client.user.tag} is ready!")
+        () => console.log(`${client.user.tag} is ready!`)
     )
 
     client.on(
         "message"
         (msg) => {
-            console.log("${msg.member.user.tag}:", msg.content)
-            if msg.content.toLowerCase().startsWith("pls ") == true {
-                let [command, ...args] = msg.content.split(/\s+/)[1...]
+            if msg.member.user.tag == client.user.tag {
+                return 0
+            }
+            console.log(`${msg.member.user.tag}: ${msg.content}`)
+            let msgBase = msg.content.replace(
+                /^``?`?|`?`?`$/g
+                ""
+            )
+            let msgText = msgBase.toLowerCase()
+            console.log(`Read as: ${msgText}`)
+            if msgText.startsWith("pls ") == true {
+                let [command, ...args] = msgBase.split(/\s+/)[1...]
                 commands[command.toLowerCase()]?(msg, ...args)
             }
         }

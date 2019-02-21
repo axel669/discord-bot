@@ -9,6 +9,7 @@
   "author": "Axel",
   "license": "MIT",
   "dependencies": {
+    "@axel669/immutable-update": "^0.1.0",
     "discord.js": "^11.4.2",
     "immutable-update-values": "^0.1.2",
     "node-fetch": "^2.2.1",
