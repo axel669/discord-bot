@@ -1,5 +1,8 @@
 // check out https://www.npmjs.com/package/yt-search
 
+let fs = require("fs")
+let path = require("path")
+
 let Discord = require("discord.js")
 let ytdl = require("ytdl-core")
 let fetch = require("node-fetch")
@@ -24,6 +27,10 @@ let saveSetings = (settings) => fetch(
         }
     }
 )
+
+let commandText = {
+    turkey: fs.readFileSync("./command-text/turkey.txt")
+}
 
 let conditional = (condition) =>
     (func) =>
@@ -138,6 +145,7 @@ let Settings = (data) => {
 
             if url != undefined {
                 settings.update("queue.$push", url)
+                msg.channel.send("Song added to queue \\o/")
             }
 
             if (settings.value.queue.length > 0 && currentPlayer == null) {
@@ -191,7 +199,6 @@ let Settings = (data) => {
                 let targetVolume = Math.min(volume, 100)
 
                 let vol = parseFloat(volume) / 100
-                console.log(currentPlayer)
                 if currentPlayer != null {
                     currentPlayer.setVolume(vol)
                 }
@@ -227,6 +234,15 @@ let Settings = (data) => {
                 }
             }
         }
+        youtube(msg, command, ...args) => {
+            if command == "premium" {
+                msg.channel.send("Fuck off, Youtube Premium")
+            }
+        }
+        turkey(msg) => msg.channel.send("🦃")
+        mist(msg) => msg.channel.send("```\n${commandText.turkey}\n```")
+        bacon(msg) => msg.channel.send("🥓")
+        wesley(msg) => msg.channel.send("Shut up, Wesley!")
     }
 
     let permissionInt = 3164160
@@ -240,6 +256,9 @@ let Settings = (data) => {
         "message"
         (msg) => {
             if msg.member.user.tag == client.user.tag {
+                return 0
+            }
+            if msg.channel.name != "sick-beats" {
                 return 0
             }
             console.log(`${msg.member.user.tag}: ${msg.content}`)

@@ -2,15 +2,18 @@
   "name": "sick-beatz",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "beatz.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tea beatz.tea -o beatz.js"
   },
   "author": "Axel",
   "license": "MIT",
   "dependencies": {
     "@axel669/immutable-update": "^0.1.0",
+    "@axel669/teascript": "^0.14.4",
     "discord.js": "^11.4.2",
+    "ffmpeg-binaries": "^4.0.0",
     "immutable-update-values": "^0.1.2",
     "node-fetch": "^2.2.1",
     "opusscript": "0.0.6",
