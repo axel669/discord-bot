@@ -1,4 +1,5 @@
 "use strict";
+var nullref0;
 const fs = require("fs");
 const path = require("path");
 const Discord = require("discord.js");
@@ -6,6 +7,7 @@ const ytdl = require("ytdl-core");
 const fetch = require("node-fetch");
 const update = require("@axel669/immutable-update");
 const pi = require("./pi.js");
+const express = require("express");
 const newLine = String.fromCharCode(10);
 const secretKey = process.env.sick_beats_settings_key;
 const settingsID = process.env.sick_beats_settings_id;
@@ -42,6 +44,14 @@ const Settings = (data) => {
         }
     };
 };
+const appServer = express();
+const appPort = (nullref0 = process.env.PORT) != null ? nullref0 : 1337;
+appServer.get("/", (req, res) => {
+    res.send("Bot is running HYPERS");
+});
+const publicServer = appServer.listen(appPort, () =>
+    console.log(`Public server is running on port ${appPort}`)
+);
 (async () => {
     const settings = Settings(
         await (await fetch(`https://api.jsonbin.io/b/${settingsID}/latest`, {
@@ -98,6 +108,7 @@ const Settings = (data) => {
                 vc.channel.leave();
             }
             client.destroy();
+            publicServer.close();
         },
         play: async (msg, url) => {
             const id = msg.guild.id;
@@ -158,28 +169,28 @@ const Settings = (data) => {
             msg.channel.send(`Volume set to ${settings.value.volume * 100}`);
         },
         join: (msg) => {
-            var nullref0;
+            var nullref1;
 
-            return (nullref0 = msg.member.voiceChannel) != null
-                ? nullref0.join()
+            return (nullref1 = msg.member.voiceChannel) != null
+                ? nullref1.join()
                 : undefined;
         },
         pie: (msg) => msg.channel.send("🥧"),
         pi: (msg, digitsString) => {
-            var nullref0;
+            var nullref1;
 
             const digits = parseInt(
-                (nullref0 = digitsString) != null ? nullref0 : "20"
+                (nullref1 = digitsString) != null ? nullref1 : "20"
             );
             msg.channel.send(`\`\`\`${pi.slice(0, digits + 2)}\`\`\``);
         },
         queue: (msg, command, ...args) => {
-            var nullref0;
+            var nullref1;
 
             switch (command) {
                 case "clear":
-                    (nullref0 = currentPlayer) != null
-                        ? nullref0.end()
+                    (nullref1 = currentPlayer) != null
+                        ? nullref1.end()
                         : undefined;
                     settings.update("queue.$set", []);
                     msg.channel.send("queue has been cleared :thumbsup:");
@@ -212,7 +223,7 @@ const Settings = (data) => {
     const permissionInt = 3164160;
     client.on("ready", () => console.log(`${client.user.tag} is ready!`));
     client.on("message", (msg) => {
-        var nullref0;
+        var nullref1;
 
         if (msg.member.user.tag === client.user.tag) {
             return 0;
@@ -226,8 +237,8 @@ const Settings = (data) => {
         console.log(`Read as: ${msgText}`);
         if (msgText.startsWith("pls ") === true) {
             const [command, ...args] = msgBase.split(/\s+/).slice(1, undefined);
-            (nullref0 = commands[command.toLowerCase()]) != null
-                ? nullref0(msg, ...args)
+            (nullref1 = commands[command.toLowerCase()]) != null
+                ? nullref1(msg, ...args)
                 : undefined;
         }
     });

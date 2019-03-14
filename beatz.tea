@@ -10,6 +10,8 @@ let update = require("@axel669/immutable-update")
 
 let pi = require("./pi.js")
 
+let express = require("express")
+
 let newLine = String.fromCharCode(10)
 
 let secretKey = process.env.sick_beats_settings_key
@@ -57,6 +59,20 @@ let Settings = (data) => {
         }
     }
 }
+
+let appServer = express()
+let appPort = process.env.PORT ?? 1337
+
+appServer.get(
+    "/"
+    (req, res) => {
+        res.send("Bot is running HYPERS")
+    }
+)
+let publicServer = appServer.listen(
+    appPort
+    () => console.log(`Public server is running on port ${appPort}`)
+)
 
 (() => {
     let settings = Settings(
@@ -132,6 +148,7 @@ let Settings = (data) => {
                 vc.channel.leave()
             }
             client.destroy()
+            publicServer.close()
         }
         play(msg, url) => {
             let id = msg.guild.id
