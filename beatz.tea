@@ -89,12 +89,9 @@ let publicServer = appServer.listen(
     let mut currentPlayer = null
     let playURL = (vc, url, volume, channel) => {
         let stream = ytdl(url, {filter: "audioonly"})
-        let player = vc.playStream(stream)
 
         let info = await ytdl.getBasicInfo(url)
         let details = info.player_response.videoDetails
-
-        console.log(details)
 
         stream.on(
             "error"
@@ -104,6 +101,8 @@ let publicServer = appServer.listen(
                 channel.send(`there was an error playing ${url}`)
             }
         )
+
+        let player = vc.playStream(stream)
 
         player.setVolume(volume)
         player.on(
