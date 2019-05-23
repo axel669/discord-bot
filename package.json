@@ -19,6 +19,7 @@
     "immutable-update-values": "^0.1.2",
     "node-fetch": "^2.2.1",
     "opusscript": "0.0.6",
+    "youtube-search-promise": "^1.0.3",
     "ytdl-core": "^0.27.1"
   }
 }

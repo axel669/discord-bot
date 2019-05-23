@@ -94,6 +94,8 @@ let publicServer = appServer.listen(
         let info = await ytdl.getBasicInfo(url)
         let details = info.player_response.videoDetails
 
+        console.log(details)
+
         stream.on(
             "error"
             (err) => {

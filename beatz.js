@@ -69,6 +69,7 @@ const publicServer = appServer.listen(appPort, () =>
         const player = vc.playStream(stream);
         const info = await ytdl.getBasicInfo(url);
         const details = info.player_response.videoDetails;
+        console.log(details);
         stream.on("error", (err) => {
             console.log(`stream error with ${url}`);
             console.error(err);
